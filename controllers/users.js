@@ -45,16 +45,15 @@ const loginUser = (req, res, next) => {
 
   User.findOne({ email }).select('+password')
     .orFail(new AuthError('Неправильные почта или пароль'))
-    .then((user) => {
-      bcryptjs.compare(password, user.password)
+    .then((user) => bcryptjs.compare(password, user.password)
         .then((matched) => {
           if (!matched) {
             throw new AuthError('Неправильные почта или пароль');
           }
 
           return user;
-        });
-    })
+        })
+    )
     .then((user) => {
       const token = jwt.sign(
         { _id: user._id },
