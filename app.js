@@ -6,7 +6,7 @@ const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
 const { requestLogger, errorLogger } = require('./middlewares/logger');
 const routers = require('./routes/index');
-const NotFoundError = require('./errors/not-found-err');
+const errorsHendler = require('./middlewares/errorsHandler');
 
 const app = express();
 const limiter = rateLimit({
@@ -28,37 +28,16 @@ mongoose.connect(MONGO_URL, {
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+app.use(requestLogger);
 app.use(cors());
 app.use(helmet());
 app.use(limiter);
-app.use(requestLogger);
-
 app.use('/', routers);
-
-app.all('*', (() => {
-  throw new NotFoundError('Запрашиваемый ресурс не найден');
-}));
-
 app.use(errorLogger);
 // обработчик ошибок celebrate
 app.use(errors());
-
 // централизованный обработчик ошибок
-app.use((err, req, res, next) => {
-  // если у ошибки нет статуса, выставляем 500
-  const { statusCode = 500, message } = err;
-
-  res
-    .status(statusCode)
-    .send({
-      // проверяем статус и выставляем сообщение в зависимости от него
-      message: statusCode === 500
-        ? 'На сервере произошла ошибка'
-        : message,
-    });
-
-  next();
-});
+app.use(errorsHendler);
 
 app.listen(PORT, () => {
   console.log(`App listening on port ${PORT}`);

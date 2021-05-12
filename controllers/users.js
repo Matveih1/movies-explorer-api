@@ -28,7 +28,7 @@ const createUser = (req, res, next) => {
       password: hash,
       name,
     }))
-    .then((data) => res.status(201).send(data))
+    .then(() => res.status(201).send({ message: 'Пользователь успешно создан' }))
     .catch((err) => {
       if (err.name === 'MongoError' && err.code === 11000) {
         next(new ConflictError('Невалидные данные'));
@@ -46,14 +46,12 @@ const loginUser = (req, res, next) => {
   User.findOne({ email }).select('+password')
     .orFail(new AuthError('Неправильные почта или пароль'))
     .then((user) => bcryptjs.compare(password, user.password)
-        .then((matched) => {
-          if (!matched) {
-            throw new AuthError('Неправильные почта или пароль');
-          }
-
-          return user;
-        })
-    )
+      .then((matched) => {
+        if (!matched) {
+          throw new AuthError('Неправильные почта или пароль');
+        }
+        return user;
+      }))
     .then((user) => {
       const token = jwt.sign(
         { _id: user._id },
@@ -83,8 +81,14 @@ const patchUser = (req, res, next) => {
     },
   )
     .orFail(new NotFoundError('Нет пользователя с таким id'))
-    .then((data) => res.status(200).send(data))
-    .catch(next);
+    .then((data) => res.send(data))
+    .catch((err) => {
+      if (err.codeName === 'DuplicateKey' && err.code === 11000) {
+        next(new ConflictError('Пользователь с такой почтой уже есть'));
+      } else {
+        next(err);
+      }
+    });
 };
 
 module.exports = {
